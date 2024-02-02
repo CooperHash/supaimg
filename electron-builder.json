@@ -17,6 +17,7 @@
     },
     "files": [
         "build/main/**/*",
+        "build/renderer/**/*",
         {
             "from": "build/renderer",
             "to": "renderer",

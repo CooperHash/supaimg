@@ -1,12 +1,13 @@
-import {app, BrowserWindow, ipcMain, session} from 'electron';
-import {join} from 'path';
+import { app, BrowserWindow, ipcMain, session } from 'electron';
+const path = require('path')
 
-function createWindow () {
+function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    //icon: path.join(app.getAppPath(), 'renderer', 'public', 'icon.svg'),
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     }
@@ -17,8 +18,15 @@ function createWindow () {
     mainWindow.loadURL(`http://localhost:${rendererPort}`);
   }
   else {
-    mainWindow.loadFile(join(app.getAppPath(), 'renderer', 'index.html'));
+    //mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+    mainWindow.loadURL(`file://${path.join(__dirname, '../renderer/index.html')}`)
   }
+
+  // mainWindow.loadURL(
+  //   process.env.NODE_ENV === 'development'
+  //     ? 'http://localhost:3000'
+  //     : `file://${path.join(__dirname, '../renderer/dist/index.html')}`
+  // )
 }
 
 app.whenReady().then(() => {
