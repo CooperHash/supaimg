@@ -1,7 +1,7 @@
 {
   "name": "supaimg",
   "version": "0.1.0",
-  "description": "A minimal Electron + Vue application",
+  "description": "a mac app for supabase's storage",
   "main": "build/main/main.js",
   "scripts": {
     "dev": "node scripts/dev-server.js",
@@ -9,11 +9,6 @@
     "build:win": "node scripts/build.js && electron-builder --win",
     "build:mac": "node scripts/build.js && electron-builder --mac",
     "build:linux": "node scripts/build.js && electron-builder --linux"
-  },
-  "repository": "https://github.com/deluze/electron-vue-template",
-  "author": {
-    "name": "Deluze",
-    "url": "https://github.com/Deluze"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.4.1",
