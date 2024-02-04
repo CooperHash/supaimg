@@ -17,14 +17,15 @@
     "electron": "^27.1.0",
     "electron-builder": "^24.2.1",
     "typescript": "^5.2.2",
-    "vite": "^4.5.0"
-  },
-  "dependencies": {
+    "vite": "^4.5.0",
+
     "@arco-design/web-vue": "^2.54.3",
     "@supabase/supabase-js": "^2.39.3",
-    "jotai": "^2.6.3",
     "unplugin-auto-import": "^0.17.5",
     "unplugin-vue-components": "^0.26.0",
     "vue": "^3.3.8"
+  },
+  "dependencies": {
+    
   }
 }

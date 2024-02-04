@@ -77,7 +77,7 @@ const uploadImage = async (event: Event) => {
   const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value)
   const file = (event.target as HTMLInputElement).files![0]
   const fileName = file.name
-  const filePath = `${fileName}`
+  const filePath = `${folderName.value.join('/')}/${fileName}`
   const { error } = await supabase.storage.from('pic').upload(filePath, file)
   if (error) {
     window.electronAPI.sendMessage(error.message)
