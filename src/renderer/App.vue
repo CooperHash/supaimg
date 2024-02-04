@@ -5,8 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 const visible = ref(false);
 
 
-const images = ref<{ name: string, id: string | null, url: string }[]>([])
+const images = ref<{ name: string, id: string | null, url: string, meta: Record<string, any> }[]>([])
 const selectedImage = ref<string | null>(null)
+const selectedMeta = ref<Record<string, any> | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const loading = ref(false)
@@ -22,6 +23,16 @@ const inputSupabaseUrl = ref(supabaseUrl || '')
 const inputAnonKey = ref(anonKey || '')
 
 
+type Meta = {
+  eTag: string,
+  size: number,
+  mimetype: string,
+  cacheControl: string,
+  lastModified: string,
+  controlLength: number,
+  httpStatusCode: number,
+}
+
 onMounted(async () => {
   if (supabaseUrl && anonKey) {
     const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value)
@@ -34,16 +45,18 @@ onMounted(async () => {
       images.value = files
         .map(file => {
           const { data } = supabase.storage.from('pic').getPublicUrl(file.name)
-          return { name: file.name, id: file.id, url: data.publicUrl }
+          return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
         })
     }
     loading.value = false
-  } 
+  }
 })
 
-const handleClick = (url: string) => {
+const handleClick = (url: string, meta: any) => {
   visible.value = true;
   selectedImage.value = url;
+  selectedMeta.value = meta;
+  window.electronAPI.sendMessage(JSON.stringify(meta))
 };
 
 const handleOk = () => {
@@ -83,7 +96,8 @@ const uploadImage = async (event: Event) => {
     window.electronAPI.sendMessage(error.message)
   } else {
     const { data } = await supabase.storage.from('pic').getPublicUrl(filePath)
-    images.value.push({ name: fileName, id: 'xxx', url: data.publicUrl })
+    window.location.reload();
+    //images.value.push({ name: fileName, id: 'xxx', url: data.publicUrl })
   }
 }
 
@@ -114,7 +128,7 @@ const fetchFolder = async (name: string) => {
     images.value = data
       .map(file => {
         const { data } = supabase.storage.from('pic').getPublicUrl(`${name}/${file.name}`)
-        return { name: file.name, id: file.id, url: data.publicUrl }
+        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
       })
   }
   loading.value = false
@@ -131,7 +145,7 @@ const back = async () => {
     images.value = files
       .map(file => {
         const { data } = supabase.storage.from('pic').getPublicUrl(file.name)
-        return { name: file.name, id: file.id, url: data.publicUrl }
+        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
       })
   }
 
@@ -164,7 +178,7 @@ const back = async () => {
         <div v-for="(image, index) in images" :key="index">
           <div v-if="image.id">
             <!-- <img class="grid-item" v-if="!image.url" src="placeholder.png" alt="Placeholder image" /> -->
-            <img class="grid-item" :src="image.url" alt="Downloaded image" @click="handleClick(image.url)" />
+            <img class="grid-item" :src="image.url" alt="Downloaded image" @click="handleClick(image.url, image.meta)" />
             <div>{{ image.name }}</div>
           </div>
           <div v-else @click="fetchFolder(image.name)">
@@ -182,13 +196,11 @@ const back = async () => {
       </div>
       <a-drawer :width="340" :visible="visible" @ok="handleOk" @cancel="handleCancel" unmountOnClose>
         <template #title>
-          Title
+          Image
         </template>
-        <div>You can customize modal body text by the current situation. This modal will be closed immediately once you
-          press the OK button.
-        </div>
         <div>
           <img v-if="selectedImage" :src="selectedImage" alt="Selected image" class="selected-image" />
+          <div v-if="selectedMeta">{{ (selectedMeta.size / (1024 * 1024)).toFixed(3) }} MB</div>
           <button v-if="selectedImage" @click="deleteSelectedImage">Delete Image</button>
         </div>
       </a-drawer>
