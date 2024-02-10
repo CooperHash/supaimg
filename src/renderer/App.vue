@@ -168,6 +168,8 @@ const handleImageError = (event: Event) => {
   // (event.target as HTMLImageElement).alt = 'Image failed to load';
 }
 
+
+
 const compressImage = async (imageUrl: string) => {
   // Fetch the image
   window.electronAPI.sendMessage('Compressing image...')
@@ -235,8 +237,10 @@ const compressImage = async (imageUrl: string) => {
         <div v-for="(image, index) in images" :key="index">
           <div v-if="image.id">
             <!-- <img class="grid-item" v-if="!image.url" src="placeholder.png" alt="Placeholder image" /> -->
-            <img class="grid-item" :src="image.url" alt="Downloaded image"
-              @click="handleClick(image.url, image.meta, image.name)" @error="handleImageError" />
+            <div class="image-container">
+              <img class="grid-item" :src="image.url" alt="Downloaded image"
+                @click="handleClick(image.url, image.meta, image.name)" @error="handleImageError" />
+            </div>
             <div>{{ image.name }}</div>
           </div>
           <div v-else @click="fetchFolder(image.name)">
@@ -261,8 +265,8 @@ const compressImage = async (imageUrl: string) => {
         <div>
           <img v-if="selectedImage" :src="selectedImage" alt="Selected image" class="selected-image" />
           <div v-if="selectedMeta">{{ (selectedMeta.size / (1024 * 1024)).toFixed(3) }} MB</div>
-          <button v-if="selectedImage" @click="compressImage(selectedImage)" style="margin-right: 11px;">compress
-            Image</button>
+          <button v-if="selectedImage && selectedMeta && selectedMeta.size > 0.8 * 1024 * 1024"
+            @click="compressImage(selectedImage)" style="margin-right: 11px;">compress Image</button>
           <button v-if="selectedImage" @click="deleteSelectedImage">Delete Image</button>
         </div>
       </a-drawer>
@@ -330,6 +334,24 @@ const compressImage = async (imageUrl: string) => {
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 }
+
+.image-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 100%; /* This creates a square container */
+  overflow: hidden;
+}
+
+.image-container img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
 
 .grid-item {
   width: 100%;
