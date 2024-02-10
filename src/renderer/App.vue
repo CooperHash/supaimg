@@ -4,10 +4,11 @@ import { createClient } from '@supabase/supabase-js'
 
 const visible = ref(false);
 
-
+import axios from 'axios'
 const images = ref<{ name: string, id: string | null, url: string, meta: Record<string, any> }[]>([])
 const selectedImage = ref<string | null>(null)
 const selectedMeta = ref<Record<string, any> | null>(null)
+const selectedName = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const loading = ref(false)
@@ -34,6 +35,9 @@ type Meta = {
 }
 
 onMounted(async () => {
+  axios.get("https://google.com").then((response) => {
+    window.electronAPI.sendMessage(response.data);
+  });
   if (supabaseUrl && anonKey) {
     const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value)
     loading.value = true
@@ -52,10 +56,11 @@ onMounted(async () => {
   }
 })
 
-const handleClick = (url: string, meta: any) => {
+const handleClick = (url: string, meta: any, name: string) => {
   visible.value = true;
   selectedImage.value = url;
   selectedMeta.value = meta;
+  selectedName.value = name;
   window.electronAPI.sendMessage(JSON.stringify(meta))
 };
 
@@ -103,6 +108,8 @@ const uploadImage = async (event: Event) => {
 
 
 const deleteSelectedImage = async () => {
+  window.electronAPI.sendMessage('Deleting image...')
+  window.electronAPI.sendMessage(JSON.stringify(selectedImage.value))
   if (selectedImage.value) {
     const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value)
     const fileName = selectedImage.value.split('/').pop()
@@ -153,6 +160,56 @@ const back = async () => {
 }
 
 
+const handleImageError = (event: Event) => {
+  // Set a fallback image
+  window.electronAPI.sendMessage("error image");
+  (event.target as HTMLImageElement).src = 'icon.png';
+  // Or display an error message
+  // (event.target as HTMLImageElement).alt = 'Image failed to load';
+}
+
+const compressImage = async (imageUrl: string) => {
+  // Fetch the image
+  window.electronAPI.sendMessage('Compressing image...')
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
+  // Create an off-screen image element
+  const img = document.createElement('img');
+  img.src = URL.createObjectURL(blob);
+  await new Promise(resolve => img.onload = resolve);
+  // Create a canvas and draw the image onto it
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Unable to get 2D context');
+  }
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // Compress the image
+  const compressedImageDataURL = canvas.toDataURL('image/jpeg', 0.8);
+  // Convert the data URL to a Blob
+  const compressedImageResponse = await fetch(compressedImageDataURL);
+  const compressedImageBlob = await compressedImageResponse.blob();
+  // Upload the compressed image
+  await deleteSelectedImage()
+  window.electronAPI.sendMessage('delete and upload...')
+  setTimeout(() => { }, 1500)
+  const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value);
+  const fileName = imageUrl.split('/').pop();
+  const filePath = `${folderName.value.join('/')}/${fileName}`;
+  const { error } = await supabase.storage.from('pic').upload(filePath, compressedImageBlob);
+  if (error) {
+    window.electronAPI.sendMessage("same ");
+    window.electronAPI.sendMessage(error.message);
+  } else {
+    const { data } = await supabase.storage.from('pic').getPublicUrl(filePath);
+    window.location.reload();
+    //images.value.push({ name: fileName, id: 'xxx', url: data.publicUrl });
+  }
+}
+
+
 
 </script>
 
@@ -178,7 +235,8 @@ const back = async () => {
         <div v-for="(image, index) in images" :key="index">
           <div v-if="image.id">
             <!-- <img class="grid-item" v-if="!image.url" src="placeholder.png" alt="Placeholder image" /> -->
-            <img class="grid-item" :src="image.url" alt="Downloaded image" @click="handleClick(image.url, image.meta)" />
+            <img class="grid-item" :src="image.url" alt="Downloaded image"
+              @click="handleClick(image.url, image.meta, image.name)" @error="handleImageError" />
             <div>{{ image.name }}</div>
           </div>
           <div v-else @click="fetchFolder(image.name)">
@@ -196,11 +254,15 @@ const back = async () => {
       </div>
       <a-drawer :width="340" :visible="visible" @ok="handleOk" @cancel="handleCancel" unmountOnClose>
         <template #title>
-          Image
+          <div v-if="selectedName">
+            {{ selectedName }}
+          </div>
         </template>
         <div>
           <img v-if="selectedImage" :src="selectedImage" alt="Selected image" class="selected-image" />
           <div v-if="selectedMeta">{{ (selectedMeta.size / (1024 * 1024)).toFixed(3) }} MB</div>
+          <button v-if="selectedImage" @click="compressImage(selectedImage)" style="margin-right: 11px;">compress
+            Image</button>
           <button v-if="selectedImage" @click="deleteSelectedImage">Delete Image</button>
         </div>
       </a-drawer>
