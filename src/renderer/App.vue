@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { createClient } from '@supabase/supabase-js'
+import VuePdfEmbed from 'vue-pdf-embed'
+
+// essential styles
+import 'vue-pdf-embed/dist/style/index.css'
 
 const visible = ref(false);
-
-import axios from 'axios'
-const images = ref<{ name: string, id: string | null, url: string, meta: Record<string, any> }[]>([])
+const images = ref<{ name: string, id: string | null, url: string, meta: Record<string, any>, type: string }[]>([])
 const selectedImage = ref<string | null>(null)
 const selectedMeta = ref<Record<string, any> | null>(null)
 const selectedName = ref<string | null>(null)
+const selectedType = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const loading = ref(false)
@@ -35,9 +38,6 @@ type Meta = {
 }
 
 onMounted(async () => {
-  axios.get("https://google.com").then((response) => {
-    window.electronAPI.sendMessage(response.data);
-  });
   if (supabaseUrl && anonKey) {
     const supabase = createClient(inputSupabaseUrl.value, inputAnonKey.value)
     loading.value = true
@@ -49,19 +49,21 @@ onMounted(async () => {
       images.value = files
         .map(file => {
           const { data } = supabase.storage.from('pic').getPublicUrl(file.name)
-          return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
+          const fileType = file.name?.split('.').pop() ?? ''
+          return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata, type: fileType }
         })
     }
     loading.value = false
   }
 })
 
-const handleClick = (url: string, meta: any, name: string) => {
+const handleClick = (url: string, meta: any, name: string, type: string) => {
   visible.value = true;
   selectedImage.value = url;
   selectedMeta.value = meta;
   selectedName.value = name;
   window.electronAPI.sendMessage(JSON.stringify(meta))
+  window.electronAPI.sendMessage(type)
 };
 
 const handleOk = () => {
@@ -135,7 +137,7 @@ const fetchFolder = async (name: string) => {
     images.value = data
       .map(file => {
         const { data } = supabase.storage.from('pic').getPublicUrl(`${name}/${file.name}`)
-        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
+        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata, type: file.name.split('.').pop() ?? '' }
       })
   }
   loading.value = false
@@ -152,7 +154,7 @@ const back = async () => {
     images.value = files
       .map(file => {
         const { data } = supabase.storage.from('pic').getPublicUrl(file.name)
-        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata }
+        return { name: file.name, id: file.id, url: data.publicUrl, meta: file.metadata, type: file.name.split('.').pop() ?? '' }
       })
   }
 
@@ -238,8 +240,9 @@ const compressImage = async (imageUrl: string) => {
           <div v-if="image.id">
             <!-- <img class="grid-item" v-if="!image.url" src="placeholder.png" alt="Placeholder image" /> -->
             <div class="image-container">
-              <img class="grid-item" :src="image.url" alt="Downloaded image"
-                @click="handleClick(image.url, image.meta, image.name)" @error="handleImageError" />
+              <div v-if="image.type === 'pdf'" class="grid-item"  @click="handleClick(image.url, image.meta, image.name, image.type)">PDF</div>
+              <img v-else class="grid-item" :src="image.url" alt="Downloaded image"
+                @click="handleClick(image.url, image.meta, image.name, image.type)" @error="handleImageError" />
             </div>
             <div>{{ image.name }}</div>
           </div>
@@ -263,7 +266,12 @@ const compressImage = async (imageUrl: string) => {
           </div>
         </template>
         <div>
-          <img v-if="selectedImage" :src="selectedImage" alt="Selected image" class="selected-image" />
+          <div>
+            <!-- <div v-if="selectedType != 'pdf'">pdf</div> -->
+            <VuePdfEmbed annotation-layer text-layer :source="selectedImage" />
+            <!-- <embed v-if="selectedType != 'pdf' && selectedImage" :src="selectedImage" class="selected-image" style="height: 500px" /> -->
+            <!-- <img v-show="selectedType !== 'pdf'" :src="selectedImage || ''" alt="Selected image" class="selected-image" /> -->
+          </div>
           <div v-if="selectedMeta">{{ (selectedMeta.size / (1024 * 1024)).toFixed(3) }} MB</div>
           <button v-if="selectedImage && selectedMeta && selectedMeta.size > 0.8 * 1024 * 1024"
             @click="compressImage(selectedImage)" style="margin-right: 11px;">compress Image</button>
@@ -338,7 +346,8 @@ const compressImage = async (imageUrl: string) => {
 .image-container {
   position: relative;
   width: 100%;
-  padding-bottom: 100%; /* This creates a square container */
+  padding-bottom: 100%;
+  /* This creates a square container */
   overflow: hidden;
 }
 
